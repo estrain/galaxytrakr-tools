@@ -25,9 +25,6 @@ jobs:
           cache-environment: true 
           cache-downloads: true 
 
-      - name: Install pip-only dependencies
-        run: micromamba run -n planemo-env pip install edam-ontology
-
       - name: Lint all tools
         run: |
           micromamba run -n planemo-env planemo lint --recursive tools/
