@@ -72,6 +72,7 @@ jobs:
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
           QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+          INVOLUCRO_STRICT_CHANNEL_PRIORITY: "0"
         run: |
           set -e
           eval "$(micromamba shell hook --shell bash)"
