@@ -22,8 +22,11 @@ jobs:
         continue-on-error: true   
         with:
           environment-file: environment.yml
-          cache-environment: false 
-          cache-downloads: false 
+          cache-environment: true 
+          cache-downloads: true 
+
+      - name: Install pip-only dependencies
+        run: micromamba run -n planemo-env pip install edam-ontology
 
       - name: Lint all tools
         run: |

@@ -9,5 +9,3 @@ dependencies:
   - docker-py
   - galaxy-tool-util
   - pyyaml
-  - edam-ontology
-
