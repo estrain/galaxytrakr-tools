@@ -22,8 +22,8 @@ jobs:
         continue-on-error: true   
         with:
           environment-file: environment.yml
-          cache-environment: true 
-          cache-downloads: true 
+          cache-environment: false 
+          cache-downloads: false
 
       - name: Lint all tools
         run: |
