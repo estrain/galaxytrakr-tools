@@ -19,6 +19,7 @@ jobs:
 
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v1
+        continue-on-error: true   
         with:
           environment-file: environment.yml
           cache-environment: true

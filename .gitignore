@@ -1,0 +1,4 @@
+# Ignore Mercurial metadata
+.hg/
+**/.hg/
+
