@@ -61,6 +61,9 @@ jobs:
 
       - name: Build and push containers
         shell: bash -l {0}
+        env:
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
         run: |
           set -e
           eval "$(micromamba shell hook --shell bash)"
@@ -76,13 +79,23 @@ jobs:
 
           for xml in $TOOL_XMLS; do
             echo "----------------------------------------"
-            echo "Building and pushing container for: $xml"
+            echo "Building container for: $xml"
             echo "----------------------------------------"
 
-            planemo mull \
-              --mulled_namespace galaxytrakr \
-              --force-push \
-              "$xml" || echo "Skipped $xml (Planemo mull failed)"
+            planemo mull --mulled_namespace galaxytrakr "$xml" || {
+              echo "⚠️ Skipped $xml (Planemo mull failed)"
+              continue
+            }
+
+            # Derive tool ID and version from XML
+            TOOL_ID=$(xmllint --xpath "string(//tool/@id)" "$xml" 2>/dev/null || basename "$xml" .xml)
+            TOOL_VERSION=$(xmllint --xpath "string(//tool/@version)" "$xml" 2>/dev/null || echo "latest")
+            IMAGE_NAME=$(echo "$TOOL_ID" | cut -d'/' -f1)
+
+            IMAGE="quay.io/galaxytrakr/${IMAGE_NAME}:${TOOL_VERSION}"
+
+            echo "Pushing image ${IMAGE} ..."
+            docker push "${IMAGE}" || echo "⚠️ Push failed for ${IMAGE_NAME}"
           done
 
       - name: Summary
