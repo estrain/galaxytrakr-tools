@@ -82,7 +82,7 @@ jobs:
             echo "Building container for: $xml"
             echo "----------------------------------------"
 
-            planemo mull --mulled_namespace galaxytrakr "$xml" || {
+            planemo mull --no-container --mulled_namespace galaxytrakr "$xml" || {
               echo "⚠️ Skipped $xml (Planemo mull failed)"
               continue
             }
