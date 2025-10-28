@@ -16,9 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Setup Micromamba environment
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
@@ -27,6 +29,7 @@ jobs:
           cache-downloads: false
           init-shell: bash
 
+      # Ensure edam-ontology is available
       - name: Install edam-ontology
         shell: bash -l {0}
         run: |
@@ -36,30 +39,37 @@ jobs:
           python -m pip install --no-cache-dir --upgrade edam-ontology
           python -c "import edam_ontology; print('edam_ontology import successful')"
 
+      # Lint all Galaxy tools
       - name: Lint all tools
         shell: bash -l {0}
         run: |
           set -e
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
-          planemo lint --recursive tools/ || echo "Planemo lint completed with warnings"
+          echo "Linting Galaxy tools..."
+          planemo lint --recursive tools/ || echo "Lint completed with warnings"
 
-      - name: Test tools
+      # Run tests (if test-data present)
+      - name: Test Galaxy tools
         shell: bash -l {0}
         run: |
           set -e
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
+          echo "Running Planemo tests..."
           planemo test --recursive tools/ || echo "Some tests failed or have no test-data."
 
+      # Log in to Quay.io
       - name: Log in to Quay.io
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
           QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
         run: |
           echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USER" --password-stdin
+          echo "Successfully logged into quay.io as $QUAY_USER"
 
-      - name: Build and push containers
+      # Build and push GalaxyTrakr containers
+      - name: Build and push containers to Quay.io
         shell: bash -l {0}
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
@@ -69,40 +79,39 @@ jobs:
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
 
-          TOOL_XMLS=$(find tools -mindepth 2 -maxdepth 4 -type f -name "*.xml" \
-            ! -name "macros*.xml" \
-            ! -name "data_manager_conf.xml" \
-            ! -path "*/test-data/*")
+          echo "Starting container registration for all tools..."
+          planemo container_register \
+            --recursive \
+            --mulled_namespace galaxytrakr \
+            --no_pull_request \
+            --conda_channels bioconda,conda-forge \
+            tools/ || echo "One or more container_register runs may have failed"
 
-          echo "Discovered tool XMLs:"
-          echo "$TOOL_XMLS"
+          echo "Searching for built images..."
+          TAR_PATHS=$(find ~/.planemo/involucro/dist -type f -name "*.tar" || true)
+          if [ -z "$TAR_PATHS" ]; then
+            echo "No image tarballs found. Skipping Docker push."
+          else
+            for tar in $TAR_PATHS; do
+              echo "Loading image tarball: $tar"
+              docker load < "$tar"
+            done
 
-          for xml in $TOOL_XMLS; do
-            echo "----------------------------------------"
-            echo "Building container for: $xml"
-            echo "----------------------------------------"
+            docker images | grep "galaxytrakr" || echo "No local images found after loading."
 
-            planemo mull --no-container --mulled_namespace galaxytrakr "$xml" || {
-              echo "⚠️ Skipped $xml (Planemo mull failed)"
-              continue
-            }
+            for image in $(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" || true); do
+              echo "Pushing $image ..."
+              docker push "$image" || echo "Push failed for $image"
+            done
+          fi
 
-            # Derive tool ID and version from XML
-            TOOL_ID=$(xmllint --xpath "string(//tool/@id)" "$xml" 2>/dev/null || basename "$xml" .xml)
-            TOOL_VERSION=$(xmllint --xpath "string(//tool/@version)" "$xml" 2>/dev/null || echo "latest")
-            IMAGE_NAME=$(echo "$TOOL_ID" | cut -d'/' -f1)
-
-            IMAGE="quay.io/galaxytrakr/${IMAGE_NAME}:${TOOL_VERSION}"
-
-            echo "Pushing image ${IMAGE} ..."
-            docker push "${IMAGE}" || echo "⚠️ Push failed for ${IMAGE_NAME}"
-          done
-
+      # CI Summary
       - name: Summary
         shell: bash -l {0}
         run: |
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
+          echo "Planemo version:"
           planemo --version
           echo "Planemo CI complete"
 
