@@ -19,11 +19,15 @@ jobs:
 
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v1
-        continue-on-error: true   
         with:
           environment-file: environment.yml
-          cache-environment: false 
+          cache-environment: false
           cache-downloads: false
+
+      - name: Install edam-ontology explicitly
+        run: |
+          micromamba run -n planemo-env python -m pip install --no-cache-dir --upgrade edam-ontology
+          micromamba run -n planemo-env python -m pip show edam-ontology
 
       - name: Lint all tools
         run: |
