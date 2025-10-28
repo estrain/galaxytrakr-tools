@@ -1,0 +1,12 @@
+# .planemo.yml
+galaxy_tool_dir: tools
+test_data_dir: test-data
+# The default Galaxy root to use when testing tools
+galaxy_root: null
+conda_auto_init: true
+conda_auto_install: true
+# Optional: skip test uploads to Galaxy server
+shed_upload_blacklist:
+  - macros.xml
+  - test-data
+

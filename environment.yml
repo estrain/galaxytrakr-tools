@@ -1,0 +1,12 @@
+name: planemo-env
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - planemo
+  - bioblend
+  - docker-py
+  - galaxy-tool-util
+  - pyyaml
+

@@ -1,0 +1,60 @@
+name: Planemo CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/**/*.xml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  planemo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Lint all tools
+        run: |
+          micromamba run -n planemo-env planemo lint --recursive tools/
+
+      # Optional: test tools (if test-data exist)
+      - name: Test tools
+        run: |
+          micromamba run -n planemo-env planemo test --recursive tools/ || echo "⚠️ Some tests failed"
+
+      - name: Log in to Quay.io
+        env:
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+        run: |
+          echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USER" --password-stdin
+
+      - name: Build and push containers
+        run: |
+          TOOL_XMLS=$(find tools -mindepth 2 -maxdepth 4 -type f -name "*.xml" \
+            ! -name "macros*.xml" \
+            ! -name "data_manager_conf.xml" \
+            ! -path "*/test-data/*")
+
+          echo "Discovered tool XMLs:"
+          echo "$TOOL_XMLS"
+
+          for xml in $TOOL_XMLS; do
+            echo "----------------------------------------"
+            echo "Building and pushing container for: $xml"
+            echo "----------------------------------------"
+            micromamba run -n planemo-env planemo mull \
+              --mulled_namespace galaxytrakr "$xml" || echo "⚠️ Skipped $xml (Planemo mull failed)"
+          done
+
