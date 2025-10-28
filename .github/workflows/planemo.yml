@@ -46,7 +46,6 @@ jobs:
           set -e
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
-          echo "Linting Galaxy tools..."
           planemo lint --recursive tools/ || echo "Lint completed with warnings"
 
       # Run tests (if test-data present)
@@ -56,7 +55,6 @@ jobs:
           set -e
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
-          echo "Running Planemo tests..."
           planemo test --recursive tools/ || echo "Some tests failed or have no test-data."
 
       # Log in to Quay.io
@@ -68,8 +66,8 @@ jobs:
           echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USER" --password-stdin
           echo "Successfully logged into quay.io as $QUAY_USER"
 
-      # Build and push GalaxyTrakr containers
-      - name: Build and push containers to Quay.io
+      # Build and push containers with planemo mull
+      - name: Build and push containers
         shell: bash -l {0}
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
@@ -79,31 +77,43 @@ jobs:
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
 
-          echo "Starting container registration for all tools..."
-          planemo container_register \
-            --recursive \
-            --mulled_namespace galaxytrakr \
-            --no_pull_request \
-            --conda_channels bioconda,conda-forge \
-            tools/ || echo "One or more container_register runs may have failed"
+          TOOL_XMLS=$(find tools -mindepth 2 -maxdepth 4 -type f -name "*.xml" \
+            ! -name "macros*.xml" \
+            ! -name "data_manager_conf.xml" \
+            ! -path "*/test-data/*")
 
-          echo "Searching for built images..."
-          TAR_PATHS=$(find ~/.planemo/involucro/dist -type f -name "*.tar" || true)
-          if [ -z "$TAR_PATHS" ]; then
-            echo "No image tarballs found. Skipping Docker push."
-          else
-            for tar in $TAR_PATHS; do
-              echo "Loading image tarball: $tar"
-              docker load < "$tar"
-            done
+          echo "Discovered tool XMLs:"
+          echo "$TOOL_XMLS"
 
-            docker images | grep "galaxytrakr" || echo "No local images found after loading."
+          for xml in $TOOL_XMLS; do
+            echo "----------------------------------------"
+            echo "Building container for: $xml"
+            echo "----------------------------------------"
 
-            for image in $(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" || true); do
-              echo "Pushing $image ..."
-              docker push "$image" || echo "Push failed for $image"
-            done
-          fi
+            planemo mull \
+              --mulled_namespace galaxytrakr \
+              --conda_channels bioconda,conda-forge \
+              "$xml" || { echo "Planemo mull failed for $xml"; continue; }
+
+            # Find and load the generated image tar
+            TAR_PATH=$(find ~/.planemo/involucro/dist -type f -name "*.tar" | tail -n 1 || true)
+            if [ -f "$TAR_PATH" ]; then
+              echo "Loading image tarball: $TAR_PATH"
+              docker load < "$TAR_PATH"
+            else
+              echo "No tarball found for $xml, skipping push."
+              continue
+            fi
+
+            # Extract the image name from the tar metadata
+            IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" | head -n 1 || true)
+            if [ -n "$IMAGE" ]; then
+              echo "Pushing image $IMAGE..."
+              docker push "$IMAGE" || echo "Push failed for $IMAGE"
+            else
+              echo "No image found to push for $xml"
+            fi
+          done
 
       # CI Summary
       - name: Summary
@@ -111,7 +121,6 @@ jobs:
         run: |
           eval "$(micromamba shell hook --shell bash)"
           micromamba activate planemo-env
-          echo "Planemo version:"
           planemo --version
           echo "Planemo CI complete"
 
