@@ -11,4 +11,4 @@ dependencies:
   - pyyaml
   - pip
   - pip:
-      - edam-ontology
+      - edam-ontology.py
