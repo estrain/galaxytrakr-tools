@@ -54,10 +54,10 @@ jobs:
 
       - name: Log in to Quay.io
         env:
-          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_USER: ${{ secrets.QUAY_USER }}
           QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
         run: |
-          echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USERNAME" --password-stdin
+          echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USER" --password-stdin
 
       - name: Build and push containers
         shell: bash -l {0}
