@@ -4,7 +4,7 @@
       <requirement type="package" version="0.4.9" channel="bioconda">lissero</requirement>
       <requirement type="package" version="1.83=py310*" channel="bioconda">biopython</requirement>
       <requirement type="package" version="2.2.3" channel="conda-forge">pandas</requirement>
-      <requirement type="package" version="3.1.6" channel="conda-forge">openssl</requirement>
+      <requirement type="package" version="3.3.1" channel="conda-forge">openssl</requirement>
       <requirement type="package" version="8.7.1" channel="conda-forge">curl</requirement>
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
