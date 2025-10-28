@@ -81,7 +81,6 @@ jobs:
 
             planemo mull \
               --mulled_namespace galaxytrakr \
-              --namespace quay.io/galaxytrakr \
               "$xml" || echo "Skipped $xml (Planemo mull failed)"
           done
 
