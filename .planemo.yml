@@ -1,19 +1,14 @@
 # .planemo.yml
 galaxy_tool_dir: tools
 test_data_dir: test-data
-# The default Galaxy root to use when testing tools
-galaxy_root: null
-conda_auto_init: true
-conda_auto_install: true
-# Optional: skip test uploads to Galaxy server
+
+# Namespace for mulled container builds
+mulled_namespace: galaxytrakr
+
+# Skip auxiliary XMLs that aren't standalone tools
 shed_upload_blacklist:
   - macros.xml
   - test-data
-mulled_targets_override:
-  tools/lissero/lissero/lissero.xml:
-    - python=3.8
-    - biopython=1.83
-    - click
-    - loguru
-    - blast=2.10
-    - setuptools
+  - data_manager_conf.xml
+  - tool_data_table_conf.xml
+  - tool_data_table_conf.xml.sample
