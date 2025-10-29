@@ -28,7 +28,7 @@ jobs:
           python-version: "3.11"
       - run: |
           python -m pip install --upgrade pip
-          pip install planemo
+          pip install planemo edam-ontology
 
       # --- Log in to Quay.io (like Biocontainers automation)
       - name: Authenticate to Quay.io
