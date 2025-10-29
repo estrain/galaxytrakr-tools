@@ -7,6 +7,7 @@
     <requirement type="package">click</requirement>
     <requirement type="package">ispcr</requirement>
     <requirement type="package">loguru</requirement>
+    <requirement type="package">mmtf-python</requirement>
     <requirement type="package">setuptools</requirement>
   </requirements>
     <command detect_errors="exit_code"><![CDATA[
