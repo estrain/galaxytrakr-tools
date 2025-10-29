@@ -91,12 +91,21 @@ jobs:
             echo "Building container for: $xml"
             echo "----------------------------------------"
 
+            # 🔹 Conditional pip install for Lissero only
+            if [[ "$xml" == *"tools/lissero/lissero/lissero.xml"* ]]; then
+              echo "Installing Lissero dependencies via pip..."
+              python -m pip install --no-cache-dir --upgrade pip
+              pip install lissero==0.4.9 biopython click loguru setuptools
+              echo "Lissero installed via pip."
+            fi
+
+            # Run Planemo mull to build the container
             planemo mull \
               --mulled_namespace galaxytrakr \
               --conda_channels bioconda,conda-forge \
               "$xml" || { echo "Planemo mull failed for $xml"; continue; }
 
-            # Find and load the generated image tar
+            # Find and load the generated image tarball
             TAR_PATH=$(find ~/.planemo/involucro/dist -type f -name "*.tar" | tail -n 1 || true)
             if [ -f "$TAR_PATH" ]; then
               echo "Loading image tarball: $TAR_PATH"
@@ -106,7 +115,7 @@ jobs:
               continue
             fi
 
-            # Extract the image name from the tar metadata
+            # Push the image to Quay.io
             IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" | head -n 1 || true)
             if [ -n "$IMAGE" ]; then
               echo "Pushing image $IMAGE..."
