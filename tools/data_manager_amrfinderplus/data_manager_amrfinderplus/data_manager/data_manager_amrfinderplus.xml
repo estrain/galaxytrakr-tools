@@ -1,0 +1,23 @@
+<tool id="data_manager_amrfinderplus" name="AMRFinderPlus Data Manger" tool_type="manage_data" version="4.0.11" profile="20.03">
+    <requirements>
+        <requirement type="package" version="4.0.23">ncbi-amrfinderplus</requirement>
+        <requirement type="package" version="3.10.6">python</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+      python '$__tool_directory__/data_manager_amrfinderplus.py' '$output_file'
+    ]]></command>
+    <inputs>
+      <param name="amrdbname" type="text" value="latest" label="Release Version - Note: only latest release is supported"/>
+    </inputs>
+    <outputs>
+        <data name="output_file" format="data_manager_json"/>
+    </outputs>
+    <tests>
+        <test>
+        </test>
+    </tests>
+    <help>
+    </help>
+    <citations>
+    </citations>
+</tool>
