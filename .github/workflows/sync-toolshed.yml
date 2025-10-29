@@ -1,0 +1,71 @@
+name: Sync Toolshed from GitHub
+
+on:
+  workflow_run:
+    workflows: ["Biocontainer-Style Planemo Build"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Update Mercurial Tool Shed Repos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Mercurial
+        run: sudo apt-get update && sudo apt-get install -y mercurial
+
+      - name: Detect Changed Tool Folders
+        id: changes
+        run: |
+          set -e
+          # Capture changed XMLs since the last Git commit
+          git fetch origin main
+          CHANGED=$(git diff --name-only HEAD^ HEAD | grep -E 'tools/.+\.xml$' || true)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Extract top-level tool directories (e.g. tools/lissero/lissero)
+          TOOL_DIRS=$(echo "$CHANGED" | awk -F'/' '{print $1"/"$2"/"$3}' | sort -u)
+          echo "tool_dirs=$TOOL_DIRS" >> $GITHUB_OUTPUT
+
+      - name: Sync Updated Tools to Mercurial
+        if: steps.changes.outputs.tool_dirs != ''
+        env:
+          HG_USER: ${{ secrets.HG_USER }}
+          HG_PASS: ${{ secrets.HG_PASS }}
+        run: |
+          set -e
+          for dir in ${{ steps.changes.outputs.tool_dirs }}; do
+            echo "---- Syncing $dir ----"
+
+            # Skip macros.xml, test-data, and data_manager_conf.xml
+            if [[ "$dir" == *"macros"* ]] || [[ "$dir" == *"test-data"* ]] || [[ "$dir" == *"data_manager_conf.xml"* ]]; then
+              echo "Skipping non-tool directory: $dir"
+              continue
+            fi
+
+            TOOL_NAME=$(basename "$dir")
+            REPO_URL="https://$HG_USER:$HG_PASS@opentrakr.org/repos/estrain/$TOOL_NAME"
+
+            # Re-clone or update the Mercurial repo
+            TMPDIR=$(mktemp -d)
+            cd "$TMPDIR"
+            hg clone "$REPO_URL" repo || (echo "Repo missing, creating new one"; hg init repo)
+            rsync -av --delete "$GITHUB_WORKSPACE/$dir/" repo/
+            cd repo
+
+            hg addremove
+            if ! hg diff --quiet; then
+              hg commit -m "Automated sync from GitHub Action ($(date +%Y-%m-%d))"
+              hg push "$REPO_URL"
+            else
+              echo "No changes detected for $TOOL_NAME"
+            fi
+            cd "$GITHUB_WORKSPACE"
+          done
+
