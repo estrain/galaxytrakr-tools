@@ -1,13 +1,6 @@
 <tool id="lissero" name="lissero" version="1.0.1+galaxy2" python_template_version="3.5" profile="21.05">
   <requirements>
-    <requirement type="package" version="3.6">python</requirement>
-    <requirement type="package" version="0.4.9">lissero</requirement>
-    <requirement type="package" version="1.70">biopython</requirement>
-    <requirement type="package" version="2.10">blast</requirement>
-    <requirement type="package">click</requirement>
-    <requirement type="package">ispcr</requirement>
-    <requirement type="package">loguru</requirement>
-    <requirement type="package">mmtf-python</requirement>
+    <requirement type="package">lissero</requirement>
     <requirement type="package">setuptools</requirement>
   </requirements>
     <command detect_errors="exit_code"><![CDATA[
