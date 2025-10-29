@@ -9,4 +9,11 @@ conda_auto_install: true
 shed_upload_blacklist:
   - macros.xml
   - test-data
-
+mulled_targets_override:
+  tools/lissero/lissero/lissero.xml:
+    - python=3.8
+    - biopython=1.83
+    - click
+    - loguru
+    - blast=2.10
+    - setuptools
