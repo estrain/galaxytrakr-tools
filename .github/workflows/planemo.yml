@@ -68,13 +68,13 @@ jobs:
               "$xml" || { echo "Build failed for $xml"; continue; }
 
             # Load built image
-            TAR_PATH=$(find ~/.planemo/involucro/dist -type f -name "*.tar" | tail -n 1 || true)
-            if [ ! -f "$TAR_PATH" ]; then
-              echo "No image tarball for $xml"
-              continue
-            fi
+            #TAR_PATH=$(find ~/.planemo/involucro/dist -type f -name "*.tar" | tail -n 1 || true)
+            #if [ ! -f "$TAR_PATH" ]; then
+            #  echo "No image tarball for $xml"
+            #  continue
+            #fi
 
-            docker load < "$TAR_PATH"
+            #docker load < "$TAR_PATH"
 
             IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" | head -n 1 || true)
             if [ -z "$IMAGE" ]; then
