@@ -1,4 +1,4 @@
-name: Biocontainer-Style Planemo Build
+name: Biocontainer-Style Planemo Build (Smart Rebuilds + Data Managers)
 
 on:
   push:
@@ -9,19 +9,17 @@ on:
 
 jobs:
   build:
-    name: Build and Push Containers
+    name: Build and Push Changed Containers
     runs-on: ubuntu-latest
 
     steps:
-      # --- Checkout source
+      # --- Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # required for git diff
 
-      # --- Install Docker and dependencies (already present on GH runners)
-      - name: Verify Docker
-        run: docker --version
-
-      # --- Setup Python and Planemo (no micromamba)
+      # --- Install Planemo (no micromamba)
       - name: Install Planemo
         uses: actions/setup-python@v5
         with:
@@ -30,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install planemo edam-ontology
 
-      # --- Log in to Quay.io (like Biocontainers automation)
+      # --- Authenticate to Quay.io
       - name: Authenticate to Quay.io
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
@@ -39,50 +37,61 @@ jobs:
           echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USER" --password-stdin
           echo "Logged into quay.io as $QUAY_USER"
 
-      # --- Pre-pull Miniforge and base images
+      # --- Pre-pull base images for reliability
       - name: Pull Base Images
         run: |
           docker pull quay.io/condaforge/miniforge3:latest
           docker pull quay.io/bioconda/base-glibc-busybox-bash:latest
 
-      # --- Build loop: equivalent to Biocontainers' involucro invocation
+      # --- Detect changed tool and data manager XMLs (ignore support files)
+      - name: Detect Changed Tools
+        id: changed
+        run: |
+          echo "Detecting changed Galaxy tools and data managers..."
+
+          # Get changed XML files under tools/
+          CHANGED_XMLS=$(git diff --name-only HEAD~1 HEAD | grep -E '^tools/.*/(data_manager/)?[^/]+\.xml$' || true)
+
+          # Filter out known non-tool XMLs
+          FILTERED_XMLS=$(echo "$CHANGED_XMLS" | grep -Ev '(macros.*\.xml|data_manager_conf\.xml|tool_data_table_conf.*\.xml|\.sample$|\.test$)' || true)
+
+          if [ -z "$FILTERED_XMLS" ]; then
+            echo "No changed tool or data manager XMLs detected. Skipping build."
+            echo "skip_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "Changed XMLs to build:"
+            echo "$FILTERED_XMLS"
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+            echo "tool_list<<EOF" >> $GITHUB_OUTPUT
+            echo "$FILTERED_XMLS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      # --- Build and push only changed tools
       - name: Build and Push Containers
+        if: steps.changed.outputs.skip_build == 'false'
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
           QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
         run: |
           set -e
-
-          TOOL_XMLS=$(find tools -type f -name "*.xml" ! -name "macros*.xml" ! -path "*/test-data/*")
-          echo "Discovered tool XMLs:"
-          echo "$TOOL_XMLS"
-
-          for xml in $TOOL_XMLS; do
+          echo "Building changed tool containers..."
+          echo "${{ steps.changed.outputs.tool_list }}" | while read -r xml; do
+            [ -z "$xml" ] && continue
             echo "------------------------------------------"
             echo "Building Biocontainer-style image for $xml"
             echo "------------------------------------------"
 
-            # Run Planemo Mull (same as Biocontainers' involucro + conda)
             planemo mull \
               --mulled_namespace galaxytrakr \
               "$xml" || { echo "Build failed for $xml"; continue; }
 
-            # Load built image
-            #TAR_PATH=$(find ~/.planemo/involucro/dist -type f -name "*.tar" | tail -n 1 || true)
-            #if [ ! -f "$TAR_PATH" ]; then
-            #  echo "No image tarball for $xml"
-            #  continue
-            #fi
-
-            #docker load < "$TAR_PATH"
-
-            IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "galaxytrakr" | head -n 1 || true)
+            IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "quay.io/galaxytrakr/" | head -n 1 || true)
             if [ -z "$IMAGE" ]; then
               echo "No built image found for $xml"
               continue
             fi
 
-            # Push to Quay.io (like Biocontainers automation)
             echo "Pushing image: $IMAGE"
             docker push "$IMAGE" || echo "Push failed for $IMAGE"
           done
