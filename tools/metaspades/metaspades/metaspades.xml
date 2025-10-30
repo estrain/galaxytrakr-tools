@@ -1,0 +1,220 @@
+<tool id="metaspades" name="metaSPAdes" version="3.15.5+galaxy1.01" profile="20.01">
+    <description>metagenome assembler (minimal; interlaced / R1+R2 / paired collection; maps list:paired)</description>
+
+    <requirements>
+            <requirement type="package" version="4.2.0">spades</requirement>
+    </requirements>
+
+    <stdio>
+        <exit_code range="1:" level="fatal"/>
+    </stdio>
+
+    <version_command><![CDATA[
+metaspades.py --version
+    ]]></version_command>
+
+    <command detect_errors="exit_code"><![CDATA[
+## ---------------------------------
+## Prep short-read inputs / symlinks
+## ---------------------------------
+#set $library = 1
+
+#if str($singlePaired.sPaired) == "paired_interlaced"
+    mkdir -p reads1 &&
+    #set $ext = $singlePaired.input1.ext.replace('fastqsanger','fastq').replace('fastqillumina','fastq')
+    ln -s '$singlePaired.input1' 'reads1/interlaced_1.${ext}' &&
+#end if
+
+#if str($singlePaired.sPaired) == "paired_two_files"
+    mkdir -p paired_reads1 &&
+    #set $ext1 = $singlePaired.input1.ext.replace('fastqsanger','fastq').replace('fastqillumina','fastq')
+    #set $ext2 = $singlePaired.input2.ext.replace('fastqsanger','fastq').replace('fastqillumina','fastq')
+    ln -s '$singlePaired.input1' 'paired_reads1/reads_1.${ext1}' &&
+    ln -s '$singlePaired.input2' 'paired_reads1/reads_2.${ext2}' &&
+#end if
+
+#if str($singlePaired.sPaired) == "paired_collection"
+    mkdir -p paired_reads1 &&
+    #set $extc = $singlePaired.input.forward.ext.replace('fastqsanger','fastq').replace('fastqillumina','fastq')
+    ln -s '$singlePaired.input.forward' 'paired_reads1/reads_1.${extc}' &&
+    ln -s '$singlePaired.input.reverse' 'paired_reads1/reads_2.${extc}' &&
+#end if
+
+## ---------------------------------
+## Optional long-read inputs / links
+## ---------------------------------
+#set $nano_paths = []
+#if $longreads.nanopore and len($longreads.nanopore) > 0
+    mkdir -p lr_nanopore &&
+    #for $lri, $lr in enumerate($longreads.nanopore)
+        #set $link = 'lr_nanopore/nano_%s.%s' % ($lri, $lr.ext)
+        ln -s '$lr' '$link' &&
+        $nano_paths.append($link)
+    #end for
+#end if
+
+#set $pbhifi_paths = []
+#if $longreads.pacbio_hifi and len($longreads.pacbio_hifi) > 0
+    mkdir -p lr_pbhifi &&
+    #for $lri, $lr in enumerate($longreads.pacbio_hifi)
+        #set $link2 = 'lr_pbhifi/pbhifi_%s.%s' % ($lri, $lr.ext)
+        ln -s '$lr' '$link2' &&
+        $pbhifi_paths.append($link2)
+    #end for
+#end if
+
+#set $nano_joined = ' '.join(["'%s'" % p for p in $nano_paths]) if $nano_paths else ''
+#set $pbhifi_joined = ' '.join(["'%s'" % p for p in $pbhifi_paths]) if $pbhifi_paths else ''
+
+## ----------
+## Run SPAdes
+## ----------
+metaspades.py 
+    -o 'output' 
+    -t \${GALAXY_SLOTS:-4} 
+#if $resources.ram_gb
+    -m ${resources.ram_gb} 
+#end if
+## short-read layout
+#if str($singlePaired.sPaired) == "paired_interlaced"
+    --${singlePaired.type_paired}-12 ${library} 'reads1/interlaced_1.${ext}'
+    --${singlePaired.type_paired}-or ${library} ${singlePaired.orientation}
+#elif str($singlePaired.sPaired) == "paired_two_files"
+    --${singlePaired.type_paired}-1  ${library} 'paired_reads1/reads_1.${ext1}'
+    --${singlePaired.type_paired}-2  ${library} 'paired_reads1/reads_2.${ext2}'
+    --${singlePaired.type_paired}-or ${library} ${singlePaired.orientation}
+#else
+    ## paired_collection (and list:paired maps to this one pair per job)
+    --${singlePaired.type_paired}-1  ${library} 'paired_reads1/reads_1.${extc}'
+    --${singlePaired.type_paired}-2  ${library} 'paired_reads1/reads_2.${extc}'
+    --${singlePaired.type_paired}-or ${library} ${singlePaired.orientation}
+#end if
+## long-reads
+#if $nano_paths
+    --nanopore ${nano_joined}
+#end if
+#if $pbhifi_paths
+    --pacbio-hifi ${pbhifi_joined}
+#end if
+## chemistry / pipeline flags
+#if $pipeline.iontorrent
+    --iontorrent
+#end if
+#if $pipeline.phred and str($pipeline.phred) != ''
+    --phred-offset ${pipeline.phred}
+#end if
+#if $pipeline.kmers and str($pipeline.kmers) != ''
+    -k '${pipeline.kmers}'
+#end if
+    ]]></command>
+
+    <inputs>
+        <!-- Short-read entry points -->
+        <conditional name="singlePaired" label="Short-read layout">
+            <param name="sPaired" type="select" label="Reads are">
+                <option value="paired_interlaced">Interlaced paired reads (single FASTQ)</option>
+                <option value="paired_two_files">Paired-end reads in two files (R1/R2, not a collection)</option>
+                <option value="paired_collection">Paired-end reads as a paired collection</option>
+            </param>
+
+            <!-- (1) Interlaced -->
+            <when value="paired_interlaced">
+                <param name="input1" type="data" format="fastqsanger,fastqsanger.gz,fastq,fastq.gz"
+                       label="Interlaced FASTQ"/>
+                <param name="type_paired" type="select" label="Library type">
+                    <option value="pe" selected="true">Paired-end (--pe-*)</option>
+                    <option value="hqmp">High-quality mate-pairs (--hqmp-*)</option>
+                    <option value="mp">Mate-pairs (--mp-*)</option>
+                </param>
+                <param name="orientation" type="select" label="Orientation (--*-or)">
+                    <option value="fr" selected="true">fr (forward-reverse)</option>
+                    <option value="rf">rf (reverse-forward)</option>
+                    <option value="ff">ff (forward-forward)</option>
+                </param>
+            </when>
+
+            <!-- (2) Two files (R1/R2) -->
+            <when value="paired_two_files">
+                <param name="input1" type="data" format="fastqsanger,fastqsanger.gz,fastq,fastq.gz"
+                       label="Forward (R1) FASTQ"/>
+                <param name="input2" type="data" format="fastqsanger,fastqsanger.gz,fastq,fastq.gz"
+                       label="Reverse (R2) FASTQ"/>
+                <param name="type_paired" type="select" label="Library type">
+                    <option value="pe" selected="true">Paired-end (--pe-*)</option>
+                    <option value="hqmp">High-quality mate-pairs (--hqmp-*)</option>
+                    <option value="mp">Mate-pairs (--mp-*)</option>
+                </param>
+                <param name="orientation" type="select" label="Orientation (--*-or)">
+                    <option value="fr" selected="true">fr (forward-reverse)</option>
+                    <option value="rf">rf (reverse-forward)</option>
+                    <option value="ff">ff (forward-forward)</option>
+                </param>
+            </when>
+
+            <!-- (3) Paired collection (maps list:paired automatically) -->
+            <when value="paired_collection">
+                <param name="input" type="data_collection" collection_type="paired"
+                       label="Paired collection (forward/reverse). To run one job per pair from a list:paired, map the list to this input."/>
+                <param name="type_paired" type="select" label="Library type">
+                    <option value="pe" selected="true">Paired-end (--pe-*)</option>
+                    <option value="hqmp">High-quality mate-pairs (--hqmp-*)</option>
+                    <option value="mp">Mate-pairs (--mp-*)</option>
+                </param>
+                <param name="orientation" type="select" label="Orientation (--*-or)">
+                    <option value="fr" selected="true">fr (forward-reverse)</option>
+                    <option value="rf">rf (reverse-forward)</option>
+                    <option value="ff" >ff (forward-forward)</option>
+                </param>
+            </when>
+        </conditional>
+
+        <!-- Optional long-reads -->
+        <section name="longreads" title="Optional long-read data">
+            <param name="nanopore" type="data" multiple="true"
+                   format="fastq,fastq.gz,fastqsanger,fastqsanger.gz,fasta,fasta.gz"
+                   optional="true" label="Nanopore reads (--nanopore)"/>
+            <param name="pacbio_hifi" type="data" multiple="true"
+                   format="fastq,fastq.gz,fastqsanger,fastqsanger.gz,fasta,fasta.gz"
+                   optional="true" label="PacBio HiFi reads (--pacbio-hifi)"/>
+        </section>
+
+        <!-- Simple knobs -->
+        <section name="resources" title="Resources">
+            <param name="ram_gb" type="integer" value="16" min="1"
+                   label="Max RAM for SPAdes (-m, in GB)"/>
+        </section>
+
+        <section name="pipeline" title="Chemistry and pipeline options">
+            <param name="iontorrent" type="boolean" truevalue="true" falsevalue=""
+                   checked="false" label="IonTorrent data (--iontorrent)"/>
+            <param name="phred" type="select" optional="true" label="Phred offset (--phred-offset)">
+                <option value="" selected="true">auto (default)</option>
+                <option value="33">33</option>
+                <option value="64">64</option>
+            </param>
+            <param name="kmers" type="text" optional="true"
+                   label="K-mer sizes (-k)" help="Comma-separated odd integers between 21 and 127, e.g. 21,33,55"/>
+        </section>
+    </inputs>
+
+    <outputs>
+        <data name="out_cn" format="fasta" from_work_dir="output/contigs.fasta"
+              label="metaSPAdes on ${on_string}: contigs"/>
+        <data name="out_sc" format="fasta" from_work_dir="output/scaffolds.fasta"
+              label="metaSPAdes on ${on_string}: scaffolds"/>
+        <data name="out_ag" format="fasta" from_work_dir="output/assembly_graph.fastg"
+              label="metaSPAdes on ${on_string}: assembly graph (FASTG)"/>
+        <data name="out_ags" format="gfa1" from_work_dir="output/assembly_graph_with_scaffolds.gfa"
+              label="metaSPAdes on ${on_string}: assembly graph with scaffolds (GFA)"/>
+        <data name="out_l" format="txt" from_work_dir="output/spades.log"
+              label="metaSPAdes on ${on_string}: log"/>
+    </outputs>
+
+    <help><![CDATA[
+]]></help>
+
+    <citations>
+        <citation type="doi">10.1101/gr.213959.116</citation>
+    </citations>
+</tool>
+

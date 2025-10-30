@@ -1,0 +1,47 @@
+<tool id="data_manager_mlst"
+      name="MLST Data Manager"
+      tool_type="manage_data"
+      version="1.0.1"
+      profile="22.05">
+
+    <description>Download and build PubMLST BLAST databases</description>
+
+    <requirements>
+        <requirement type="package" version="2.23.0">mlst</requirement>
+        <requirement type="package" version="2.14.1">blast</requirement>
+    </requirements>
+
+    <command detect_errors="exit_code"><![CDATA[
+python '$__tool_directory__/data_manager_mlst.py' '$output_file'
+    ]]></command>
+
+    <inputs>
+        <param name="source" type="hidden" value="pubmlst"/>
+    </inputs>
+
+    <outputs>
+        <data name="output_file" format="data_manager_json"/>
+    </outputs>
+
+    <help><![CDATA[
+This Data Manager downloads all **PubMLST** databases using the
+`mlst-download_pub_mlst` command (from Torsten Seemann’s *MLST* 2.23.0),
+then merges and indexes them into a single **BLAST+** nucleotide database
+for use by Galaxy MLST tools.
+
+A data table entry will be added under **mlst** containing the timestamped
+database name and path.
+    ]]></help>
+
+    <citations>
+        <citation type="bibtex">
+@misc{seemann_mlst,
+  author={Torsten Seemann},
+  title={mlst: Scan contig files against PubMLST typing schemes},
+  year={2025},
+  howpublished={https://github.com/tseemann/mlst}
+}
+        </citation>
+    </citations>
+</tool>
+

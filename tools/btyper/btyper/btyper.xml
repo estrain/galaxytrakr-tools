@@ -1,0 +1,36 @@
+<tool id="btyper" name="BTyper" version="3.4">
+    <requirements>
+      <requirement type="package" version="3.4.0">btyper3</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+
+      btyper3 -i $draft
+      -o "./"; cat btyper3_final_results/*.txt > results.txt; 
+
+    ]]></command>
+    <inputs>
+       <param name="draft" type="data" format="fasta" label="FASTA" />
+    </inputs>
+    <outputs>
+      <data format="tabular" label="BTyper Results" name="results" from_work_dir="*.txt"/>
+    </outputs>
+    <help><![CDATA[
+      BTyper is a that employs a combination of (i) virulence gene-based typing, (ii) multi-locus sequence typing (MLST), (iii) panC clade typing, and (iv) rpoB allelic typing to rapidly classify B. cereus group isolates using nucleotide sequencing data. 
+
+      The Draft Genome option concatenates contigs in a single fasta file and produces a single report. The Complete Genome option assumes a single chromosome, and plasmids if present, and the report contains a section for each fasta header in the input file.
+
+    ]]></help>
+    <citations>
+       <citation type="bibtex">
+        @misc{carrol_kovac_miller_wiedman_2017,
+        title={Rapid, high-throughput identification of anthrax-causing and emetic Bacillus cereus group genome assemblies using BTyper, a computational tool for virulence-based classification of Bacillus cereus group isolates using nucleotide sequencing data.},
+        url={http://aem.asm.org/content/early/2017/06/12/AEM.01096-17},
+        journal={Applied and Environmental Microbiology}, publisher={ASM},
+        author={Carroll, Laura M., Jasna Kovac, Rachel A. Miller, Martin Wiedmann},
+        year={2017}, month={Jun}} ,
+       }</citation>
+    </citations>
+
+
+
+</tool>
