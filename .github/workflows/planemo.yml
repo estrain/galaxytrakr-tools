@@ -1,4 +1,4 @@
-name: Biocontainer-Style Planemo Build (Smart Rebuilds + Data Managers)
+name: Planemo Build and Push
 
 on:
   push:
