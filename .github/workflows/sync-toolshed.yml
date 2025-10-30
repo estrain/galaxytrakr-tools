@@ -33,7 +33,9 @@ jobs:
           set -euo pipefail
           echo "Detecting changed Galaxy tools..."
           CHANGED=$(git diff --name-only HEAD^ HEAD | grep '^tools/' || true)
-          echo "$CHANGED" | sed 's|/[^/]*$||' | sort -u | uniq > changed_dirs.txt
+
+          # Extract only top-level tool directories (e.g., tools/btyper)
+          echo "$CHANGED" | awk -F'/' '{print $1"/"$2}' | sort -u > changed_dirs.txt
 
           if [[ -s changed_dirs.txt ]]; then
             echo "Detected changed tool directories:"
@@ -100,4 +102,4 @@ jobs:
             rm -rf "$TEMP_DIR"
           done
 
-          echo "All changed Mercurial tool repositories synchronized successfully."
+          echo "✅ All changed Mercurial tool repositories synchronized successfully."
