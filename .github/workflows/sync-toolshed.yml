@@ -55,17 +55,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          HG_USER="${HG_USER}"
-          HG_PASS="${HG_PASS}"
-          HG_EMAIL="${HG_EMAIL}"
           [[ -z "$HG_PASS" ]] && { echo "Error: HG_PASS not set"; exit 1; }
 
-          HG_BASE_URL="https://${HG_USER}:${HG_PASS}@opentrakr.org/repos/${HG_USER}"
+          # Configure Mercurial authentication safely (avoids masking in logs)
+          mkdir -p ~/.hgrc.d
+          printf "[auth]\n" > ~/.hgrc
+          printf "opentrakr.prefix = opentrakr.org\n" >> ~/.hgrc
+          printf "opentrakr.username = %s\n" "$HG_USER" >> ~/.hgrc
+          printf "opentrakr.password = %s\n" "$HG_PASS" >> ~/.hgrc
 
           echo "Starting sync for changed tool repos..."
           for dir in ${{ steps.changes.outputs.tool_dirs }}; do
             TOOL_NAME=$(basename "$dir")
-            REPO_URL="${HG_BASE_URL}/${TOOL_NAME}"
+            REPO_URL="https://opentrakr.org/repos/${HG_USER}/${TOOL_NAME}"
             TEMP_DIR=$(mktemp -d)
 
             echo ">>> Syncing ${TOOL_NAME} ..."
@@ -93,7 +95,7 @@ jobs:
             if [[ -n "$(hg status)" ]]; then
               echo "   [${TOOL_NAME}] committing and pushing changes..."
               hg addremove -q
-              hg commit -m "Auto-sync from GitHub $(date +%Y-%m-%d)" -u "${HG_USER} <${HG_EMAIL}>" -q || true
+              hg commit -m "Auto-sync from GitHub $(date +%Y-%m-%d)" -u "${HG_USER} <${HG_EMAIL:-${HG_USER}@example.com}>" -q || true
               hg push -q || { echo "   Warning: Push failed for ${TOOL_NAME}"; }
             else
               echo "   [${TOOL_NAME}] no changes to commit."
@@ -103,5 +105,4 @@ jobs:
             rm -rf "$TEMP_DIR"
           done
 
-          echo "✅ All changed Mercurial tool repositories synchronized successfully."
-
+          echo "All changed Mercurial tool repositories synchronized successfully."
