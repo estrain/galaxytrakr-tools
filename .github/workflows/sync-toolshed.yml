@@ -1,4 +1,4 @@
-name: Sync Galaxy Tools to Mercurial Tool Shed
+name: Sync Galaxy Tools to Tool Shed via Planemo
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   sync-tools:
-    name: Sync Updated Mercurial ToolShed Repos
+    name: Upload Changed Tools to Tool Shed
     runs-on: ubuntu-latest
 
     steps:
@@ -22,10 +22,15 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Install Mercurial
+      - name: Install Planemo and dependencies
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y mercurial rsync curl
+          sudo apt-get install -y python3 python3-venv python3-pip curl rsync
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install planemo
 
       - name: Identify Changed Tool Directories
         id: changes
@@ -46,66 +51,40 @@ jobs:
             echo "tool_dirs=" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Sync Tools to Tool Shed
+      - name: Upload to Tool Shed
         if: steps.changes.outputs.tool_dirs != ''
         env:
-          HG_USER: ${{ secrets.HG_USER }}
-          HG_PASS: ${{ secrets.HG_PASS }}
-          HG_EMAIL: ${{ secrets.HG_EMAIL }}
+          TOOL_SHED_URL: https://opentrakr.org
+          TOOL_SHED_KEY: ${{ secrets.TOOL_SHED_KEY }}
         run: |
           set -euo pipefail
+          source .venv/bin/activate
 
-          [[ -z "$HG_PASS" ]] && { echo "Error: HG_PASS not set"; exit 1; }
+          if [[ -z "$TOOL_SHED_KEY" ]]; then
+            echo "Error: TOOL_SHED_KEY not set."
+            exit 1
+          fi
 
-          # Configure Mercurial authentication safely (avoids masking in logs)
-          mkdir -p ~/.hgrc.d
-          printf "[auth]\n" > ~/.hgrc
-          printf "opentrakr.prefix = https://opentrakr.org\n" >> ~/.hgrc
-          printf "opentrakr.username = %s\n" "$HG_USER" >> ~/.hgrc
-          printf "opentrakr.password = %s\n" "$HG_PASS" >> ~/.hgrc
-
-          echo "Testing auth..."
-          hg identify https://opentrakr.org/repos/${HG_USER}/btyper --debug | head -20 || true
-
-          echo "Starting sync for changed tool repos..."
           for dir in ${{ steps.changes.outputs.tool_dirs }}; do
             TOOL_NAME=$(basename "$dir")
-            REPO_URL="https://opentrakr.org/repos/${HG_USER}/${TOOL_NAME}"
-            TEMP_DIR=$(mktemp -d)
+            echo ">>> Uploading ${TOOL_NAME} to Tool Shed at ${TOOL_SHED_URL}..."
 
-            echo ">>> Syncing ${TOOL_NAME} ..."
-            echo "   Repo URL: ${REPO_URL}"
-
-            # Check if remote repo exists
-            if ! curl -fs --head "${REPO_URL}" >/dev/null 2>&1; then
-              echo "   Skipping ${TOOL_NAME} — remote repo not found at ${REPO_URL}"
-              rm -rf "$TEMP_DIR"
+            # Check if tool directory has a valid tool.xml
+            if [[ ! -f "$dir/tool.xml" && ! -f "$dir/${TOOL_NAME}.xml" ]]; then
+              echo "   Skipping ${TOOL_NAME} — no XML tool definition found."
               continue
             fi
 
-            # Clone the remote Mercurial repo fresh
-            echo "   Cloning ${REPO_URL}..."
-            if ! hg clone -q "${REPO_URL}" "$TEMP_DIR"; then
-              echo "   Failed to clone ${REPO_URL}, initializing empty repo."
-              hg init "$TEMP_DIR"
-            fi
+            planemo shed_upload \
+              --shed_target production \
+              --shed_key "$TOOL_SHED_KEY" \
+              --shed_url "$TOOL_SHED_URL" \
+              --force_repository_creation \
+              --tar_only_if_needed \
+              "$dir"
 
-            # Copy updated tool contents from GitHub workspace into the clone
-            rsync -av --delete "${dir}/" "$TEMP_DIR/" --exclude '.hg'
-
-            # Commit + push if there are any changes
-            cd "$TEMP_DIR"
-            if [[ -n "$(hg status)" ]]; then
-              echo "   [${TOOL_NAME}] committing and pushing changes..."
-              hg addremove -q
-              hg commit -m "Auto-sync from GitHub $(date +%Y-%m-%d)" -u "${HG_USER} <${HG_EMAIL:-${HG_USER}@example.com}>" -q || true
-              hg push -q || { echo "   Warning: Push failed for ${TOOL_NAME}"; }
-            else
-              echo "   [${TOOL_NAME}] no changes to commit."
-            fi
-
-            cd - >/dev/null
-            rm -rf "$TEMP_DIR"
+            echo "   [${TOOL_NAME}] upload complete."
           done
 
-          echo "All changed Mercurial tool repositories synchronized successfully."
+          echo "All changed tools uploaded successfully via Planemo."
+
