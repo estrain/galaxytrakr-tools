@@ -1,0 +1,18 @@
+name: btyper
+owner: estrain
+description: "Virulence-based classification of Bacillus cereus group"
+long_description: |
+  BTyper is a tool that employs a combination of (i) virulence gene-based typing,
+  (ii) multi-locus sequence typing (MLST), (iii) panC clade typing, and (iv)
+  rpoB allelic typing to rapidly classify *Bacillus cereus* group isolates
+  using nucleotide sequencing data.
+
+  Additionally, antimicrobial resistance (AMR) gene detection was added in
+  BTyper version 2.0.0 (released 2017-06-29), a function that can be used with
+  sequencing data from any bacterial species.
+remote_repository_url: https://github.com/estrain/galaxytrakr-tools/tree/main/tools/btyper
+homepage_url: https://github.com/lmc297/BTyper
+categories:
+  - Tools
+type: unrestricted
+
