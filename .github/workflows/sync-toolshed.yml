@@ -55,9 +55,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          HG_USER="${HG_USER:-estrain}"
-          HG_PASS="${HG_PASS:-}"
-          HG_EMAIL="${HG_EMAIL:-${HG_USER}@example.com}"
+          HG_USER="${HG_USER}"
+          HG_PASS="${HG_PASS}"
+          HG_EMAIL="${HG_EMAIL}"
           [[ -z "$HG_PASS" ]] && { echo "Error: HG_PASS not set"; exit 1; }
 
           HG_BASE_URL="https://${HG_USER}:${HG_PASS}@opentrakr.org/repos/${HG_USER}"
