@@ -7,7 +7,6 @@ long_description: |
   rpoB allelic typing to rapidly classify *Bacillus cereus* group isolates
   using nucleotide sequencing data.
 
-
   Additionally, antimicrobial resistance (AMR) gene detection was added in
   BTyper version 2.0.0 (released 2017-06-29), a function that can be used with
   sequencing data from any bacterial species.
