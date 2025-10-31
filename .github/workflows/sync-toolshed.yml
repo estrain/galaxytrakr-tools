@@ -60,9 +60,12 @@ jobs:
           # Configure Mercurial authentication safely (avoids masking in logs)
           mkdir -p ~/.hgrc.d
           printf "[auth]\n" > ~/.hgrc
-          printf "opentrakr.prefix = opentrakr.org\n" >> ~/.hgrc
+          printf "opentrakr.prefix = https://opentrakr.org\n" >> ~/.hgrc
           printf "opentrakr.username = %s\n" "$HG_USER" >> ~/.hgrc
           printf "opentrakr.password = %s\n" "$HG_PASS" >> ~/.hgrc
+
+          echo "Testing auth..."
+          hg identify https://opentrakr.org/repos/${HG_USER}/btyper --debug | head -20 || true
 
           echo "Starting sync for changed tool repos..."
           for dir in ${{ steps.changes.outputs.tool_dirs }}; do
