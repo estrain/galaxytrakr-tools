@@ -1,3 +1,5 @@
+
+
 name: Sync Galaxy Tools to Tool Shed via Planemo
 
 on:
@@ -69,14 +71,20 @@ jobs:
             TOOL_NAME=$(basename "$dir")
             echo ">>> Uploading ${TOOL_NAME} to Tool Shed at ${TOOL_SHED_URL}..."
 
-            # Detect the inner directory (e.g. tools/btyper/btyper)
-            INNER_DIR=$(find "$dir" -maxdepth 2 -type d -name "$TOOL_NAME" | head -n1)
-            TARGET_DIR="${INNER_DIR:-$dir}"
+            # Try both the parent and inner directory for the tool
+            CANDIDATES=("$dir" "$dir/$TOOL_NAME")
+            TARGET_DIR=""
 
-            # Verify XML presence (tool or data_manager)
-            if ! find "$TARGET_DIR" -maxdepth 1 -type f -name "*.xml" \
-                | xargs grep -E -q "<(tool|data_manager)"; then
-              echo "   Skipping ${TOOL_NAME} — no Galaxy tool or data_manager XML found in ${TARGET_DIR}."
+            for candidate in "${CANDIDATES[@]}"; do
+              if find "$candidate" -maxdepth 1 -type f -name "*.xml" \
+                  | xargs grep -E -q "<(tool|data_manager)"; then
+                TARGET_DIR="$candidate"
+                break
+              fi
+            done
+
+            if [[ -z "$TARGET_DIR" ]]; then
+              echo "   Skipping ${TOOL_NAME} — no Galaxy tool or data_manager XML found."
               continue
             fi
 
@@ -94,4 +102,3 @@ jobs:
           done
 
           echo "All changed tools uploaded successfully via Planemo."
-
