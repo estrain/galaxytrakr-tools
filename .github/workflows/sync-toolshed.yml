@@ -91,7 +91,7 @@ jobs:
             planemo shed_upload \
               --shed_target "$PLANEMO_SHED_TARGET" \
               --force_repository_creation \
-              --tar_only_if_needed \
+              --tar_only \
               --owner estrain \
               "$TARGET_DIR"
 
