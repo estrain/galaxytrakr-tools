@@ -69,22 +69,28 @@ jobs:
             TOOL_NAME=$(basename "$dir")
             echo ">>> Uploading ${TOOL_NAME} to Tool Shed at ${TOOL_SHED_URL}..."
 
-            # Check if tool directory has a valid tool.xml
-            if [[ ! -f "$dir/tool.xml" && ! -f "$dir/${TOOL_NAME}.xml" ]]; then
-              echo "   Skipping ${TOOL_NAME} — no XML tool definition found."
+            # Detect the inner tool directory (e.g. tools/btyper/btyper)
+            INNER_DIR=$(find "$dir" -maxdepth 1 -type d -name "$TOOL_NAME" | head -n1)
+            TARGET_DIR="${INNER_DIR:-$dir}"
+
+            # Verify XML presence (tool or data_manager)
+            if ! find "$TARGET_DIR" -maxdepth 1 -name "*.xml" \
+                | xargs grep -E -q "<(tool|data_manager)"; then
+              echo "   Skipping ${TOOL_NAME} — no Galaxy tool or data_manager XML found in ${TARGET_DIR}."
               continue
             fi
 
+            echo "   Found Galaxy tool definitions in ${TARGET_DIR}"
             planemo shed_upload \
               --shed_target production \
               --shed_key "$TOOL_SHED_KEY" \
               --shed_url "$TOOL_SHED_URL" \
               --force_repository_creation \
+              --owner estrain \
               --tar_only_if_needed \
-              "$dir"
+              "$TARGET_DIR"
 
             echo "   [${TOOL_NAME}] upload complete."
           done
 
           echo "All changed tools uploaded successfully via Planemo."
-
