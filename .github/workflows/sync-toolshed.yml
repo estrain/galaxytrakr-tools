@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2 # needed for git diff to see last commit
+          fetch-depth: 2
 
       - name: Install Mercurial
         run: |
@@ -34,8 +34,8 @@ jobs:
           echo "Detecting changed Galaxy tools..."
           CHANGED=$(git diff --name-only HEAD^ HEAD | grep '^tools/' || true)
 
-          # Extract only top-level tool directories (e.g., tools/btyper)
-          echo "$CHANGED" | awk -F'/' '{print $1"/"$2}' | sort -u > changed_dirs.txt
+          # Extract only top-level tool directories directly under tools/
+          echo "$CHANGED" | sed -E 's|^tools/([^/]+).*|tools/\1|' | sort -u > changed_dirs.txt
 
           if [[ -s changed_dirs.txt ]]; then
             echo "Detected changed tool directories:"
@@ -68,11 +68,12 @@ jobs:
             REPO_URL="${HG_BASE_URL}/${TOOL_NAME}"
             TEMP_DIR=$(mktemp -d)
 
-            echo ">>> Syncing $TOOL_NAME ..."
+            echo ">>> Syncing ${TOOL_NAME} ..."
+            echo "   Repo URL: ${REPO_URL}"
 
             # Check if remote repo exists
             if ! curl -fs --head "${REPO_URL}" >/dev/null 2>&1; then
-              echo "   Skipping $TOOL_NAME — remote repo not found at ${REPO_URL}"
+              echo "   Skipping ${TOOL_NAME} — remote repo not found at ${REPO_URL}"
               rm -rf "$TEMP_DIR"
               continue
             fi
@@ -80,7 +81,7 @@ jobs:
             # Clone the remote Mercurial repo fresh
             echo "   Cloning ${REPO_URL}..."
             if ! hg clone -q "${REPO_URL}" "$TEMP_DIR"; then
-              echo "   Failed to clone $REPO_URL, initializing empty repo."
+              echo "   Failed to clone ${REPO_URL}, initializing empty repo."
               hg init "$TEMP_DIR"
             fi
 
@@ -90,12 +91,12 @@ jobs:
             # Commit + push if there are any changes
             cd "$TEMP_DIR"
             if [[ -n "$(hg status)" ]]; then
-              echo "   [$TOOL_NAME] committing and pushing changes..."
+              echo "   [${TOOL_NAME}] committing and pushing changes..."
               hg addremove -q
               hg commit -m "Auto-sync from GitHub $(date +%Y-%m-%d)" -u "${HG_USER} <${HG_EMAIL}>" -q || true
-              hg push -q || { echo "   Warning: Push failed for $TOOL_NAME"; }
+              hg push -q || { echo "   Warning: Push failed for ${TOOL_NAME}"; }
             else
-              echo "   [$TOOL_NAME] no changes to commit."
+              echo "   [${TOOL_NAME}] no changes to commit."
             fi
 
             cd - >/dev/null
@@ -103,3 +104,4 @@ jobs:
           done
 
           echo "✅ All changed Mercurial tool repositories synchronized successfully."
+
