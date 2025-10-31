@@ -69,12 +69,12 @@ jobs:
             TOOL_NAME=$(basename "$dir")
             echo ">>> Uploading ${TOOL_NAME} to Tool Shed at ${TOOL_SHED_URL}..."
 
-            # Detect the inner tool directory (e.g. tools/btyper/btyper)
-            INNER_DIR=$(find "$dir" -maxdepth 1 -type d -name "$TOOL_NAME" | head -n1)
+            # Detect the inner directory (e.g. tools/btyper/btyper)
+            INNER_DIR=$(find "$dir" -maxdepth 2 -type d -name "$TOOL_NAME" | head -n1)
             TARGET_DIR="${INNER_DIR:-$dir}"
 
             # Verify XML presence (tool or data_manager)
-            if ! find "$TARGET_DIR" -maxdepth 1 -name "*.xml" \
+            if ! find "$TARGET_DIR" -maxdepth 1 -type f -name "*.xml" \
                 | xargs grep -E -q "<(tool|data_manager)"; then
               echo "   Skipping ${TOOL_NAME} — no Galaxy tool or data_manager XML found in ${TARGET_DIR}."
               continue
@@ -94,3 +94,4 @@ jobs:
           done
 
           echo "All changed tools uploaded successfully via Planemo."
+
