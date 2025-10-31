@@ -7,6 +7,8 @@
       btyper3 -i $draft
       -o "./"; cat btyper3_final_results/*.txt > results.txt; 
 
+
+
     ]]></command>
     <inputs>
        <param name="draft" type="data" format="fasta" label="FASTA" />
