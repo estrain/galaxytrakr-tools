@@ -1,0 +1,10 @@
+name: metaspades
+owner: estrain
+description: A pipeline for metagenomic data sets.
+long_description: |-
+  metaSPAdes is a pipeline for assembling metagenomic data sets. metaSPAdes
+  focuses on reconstructing a consensus backbone of a strain mixture, thus
+  ignoring some strain-specific features corresponding to rare strains.
+homepage_url: ''
+type: unrestricted
+categories: []

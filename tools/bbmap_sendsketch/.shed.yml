@@ -1,0 +1,8 @@
+name: bbmap_sendsketch
+owner: estrain
+description: MinHash Sketch is a method of rapidly comparing large strings or sets.
+long_description: |-
+  MinHash Sketch is a method of rapidly comparing large strings or sets.
+homepage_url: https://sourceforge.net/projects/bbmap
+type: unrestricted
+categories: []

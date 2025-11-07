@@ -1,0 +1,9 @@
+name: data_manager_mlst
+owner: estrain
+description: Data Manager for MLST tool
+long_description: |-
+  Download latest pubmlst databases using mlst-download_pub_mlst script and create
+  a new data table entry.
+homepage_url: ''
+type: unrestricted
+categories: []
