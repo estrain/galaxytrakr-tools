@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+
+#
+# Script to retrieve shed.yml metadata fields from a
+# galaxy tool repository (opentrakr.org). These can
+# then be used with planemo to push tools to new repos
+# Errol Strain (estrain@gmail.com)
+#
+
 import os
 import re
 import textwrap
@@ -64,7 +72,6 @@ def parse_html_description(repo_id):
 
     return short_desc, long_desc, homepage
 
-# Represent multi-line strings with YAML literal block style
 class LiteralStr(str): pass
 def literal_str_representer(dumper, value):
     return dumper.represent_scalar('tag:yaml.org,2002:str', value, style='|')
